@@ -1,0 +1,14 @@
+flask
+groq
+flask-bcrypt
+flask-session
+pymongo
+duckduckgo-search
+moviepy
+pydub
+pypdf
+pillow
+python-dotenv
+requests
+dnspython
+gunicorn

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StudyBot 🎓 - Login</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #6c63ff 0%, #a78bfa 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: white;
+      border-radius: 24px;
+      padding: 40px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .logo { text-align: center; margin-bottom: 28px; }
+    .logo h1 { font-size: 32px; color: #1a1a1a; }
+    .logo p { font-size: 14px; color: #888; margin-top: 4px; }
+    .tabs {
+      display: flex;
+      background: #f0f0f0;
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 28px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #888;
+      transition: all 0.2s;
+    }
+    .tab.active { background: white; color: #6c63ff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .form { display: none; flex-direction: column; gap: 16px; }
+    .form.active { display: flex; }
+    .form input {
+      padding: 14px 16px;
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      font-size: 15px;
+      outline: none;
+      transition: border 0.2s;
+      width: 100%;
+    }
+    .form input:focus { border-color: #6c63ff; }
+    .form button[type="submit"] {
+      padding: 14px;
+      background: #6c63ff;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .form button[type="submit"]:hover { background: #5a52d5; }
+    .error {
+      color: #e53935;
+      font-size: 13px;
+      text-align: center;
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <h1>🎓 StudyBot</h1>
+      <p>Your personal AI study assistant</p>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('login')">Login</button>
+      <button class="tab" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- Login Form -->
+    <form class="form active" id="loginForm" onsubmit="handleLogin(event)">
+      <input type="text" id="loginIdentifier" placeholder="Email or Username" required/>
+      <input type="password" id="loginPassword" placeholder="Password" required/>
+      <p class="error" id="loginError"></p>
+      <button type="submit">Login</button>
+    </form>
+
+    <!-- Register Form -->
+    <form class="form" id="registerForm" onsubmit="handleRegister(event)">
+      <input type="text" id="regUsername" placeholder="Username" required/>
+      <input type="email" id="regEmail" placeholder="Email" required/>
+      <input type="password" id="regPassword" placeholder="Password (min 6 chars)" required/>
+      <p class="error" id="registerError"></p>
+      <button type="submit">Create Account</button>
+    </form>
+  </div>
+
+  <script>
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
+      document.getElementById(tab + 'Form').classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const identifier = document.getElementById('loginIdentifier').value;
+      const password = document.getElementById('loginPassword').value;
+      const errorEl = document.getElementById('loginError');
+      errorEl.innerText = '';
+
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.location.href = '/';
+      } else {
+        errorEl.innerText = data.error;
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const username = document.getElementById('regUsername').value;
+      const email = document.getElementById('regEmail').value;
+      const password = document.getElementById('regPassword').value;
+      const errorEl = document.getElementById('registerError');
+      errorEl.innerText = '';
+
+      const res = await fetch('/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.location.href = '/';
+      } else {
+        errorEl.innerText = data.error;
+      }
+    }
+  </script>
+</body>
+</html>
