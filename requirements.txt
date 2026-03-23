@@ -6,6 +6,7 @@ pymongo
 duckduckgo-search
 moviepy
 pydub
+audioop-lts
 pypdf
 pillow
 python-dotenv
