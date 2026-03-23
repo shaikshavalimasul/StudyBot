@@ -87,17 +87,17 @@ def extract_file_content(file_data, filename):
 # ── Checks if user is requesting an image
 def is_image_request(message):
     image_keywords = [
-        "draw", "generate image", "create image",
-        "show me a picture", "make an image", "visualize",
-        "illustrate", "diagram", "flowchart", "sketch",
-        "paint", "render", "picture of", "image of",
-        "show me", "generate a", "create a diagram",
-        "make a diagram", "flow chart", "can generate",
-        "generate the image", "create the image",
-        "make the image", "show image", "give me image",
-        "give me a picture", "generate me", "draw me",
-        "image of the", "photo of", "photograph of",
-        "can you generate", "able to generate"
+        "draw", "generate image", "create image", "generate an image",
+        "create an image", "make an image", "show me a picture",
+        "visualize", "illustrate", "diagram", "flowchart", "sketch",
+        "paint", "render", "picture of", "image of", "generate a picture",
+        "create a diagram", "make a diagram", "flow chart",
+        "generate the image", "create the image", "make the image",
+        "show image", "give me image", "give me a picture",
+        "generate me", "draw me", "image of the", "photo of",
+        "photograph of", "can you generate", "able to generate",
+        "generate picture", "create picture", "show me an image",
+        "show me a diagram", "show me a photo"
     ]
     message_lower = message.lower()
     for keyword in image_keywords:
@@ -392,51 +392,74 @@ def web_search():
 @app.route("/analyze-video", methods=["POST"])
 @login_required
 def analyze_video():
+    tmp_video_path = None
+    tmp_audio_path = None
     try:
         video_file = request.files["video"]
         chat_id = request.form.get("chat_id")
         user_message = request.form.get("message", "Analyze this video and explain what you see.")
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp_video:
+        original_ext = os.path.splitext(video_file.filename)[1] or ".mp4"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=original_ext) as tmp_video:
             video_file.save(tmp_video.name)
             tmp_video_path = tmp_video.name
 
-        video_clip = VideoFileClip(tmp_video_path)
-        tmp_audio_path = tmp_video_path.replace(".mp4", ".mp3")
-        video_clip.audio.write_audiofile(tmp_audio_path, logger=None)
-        video_clip.close()
+        tmp_audio_path = tmp_video_path.rsplit(".", 1)[0] + ".mp3"
 
-        speech_text = ""
-        with open(tmp_audio_path, "rb") as audio_file:
-            transcription = client.audio.transcriptions.create(
-                model="whisper-large-v3", file=audio_file, response_format="text"
+        # ── Extract and transcribe audio
+        speech_text = "No speech detected"
+        try:
+            vc = VideoFileClip(tmp_video_path)
+            if vc.audio is not None:
+                vc.audio.write_audiofile(tmp_audio_path, logger=None)
+                vc.close()
+                with open(tmp_audio_path, "rb") as af:
+                    result = client.audio.transcriptions.create(
+                        model="whisper-large-v3", file=af, response_format="text"
+                    )
+                    if result and result.strip():
+                        speech_text = result.strip()
+            else:
+                vc.close()
+        except Exception:
+            pass
+
+        # ── Extract middle frame for visual analysis
+        visual_analysis = "No visual analysis available"
+        try:
+            vc2 = VideoFileClip(tmp_video_path)
+            frame = vc2.get_frame(vc2.duration / 2)
+            vc2.close()
+            img = PIL.Image.fromarray(frame)
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG")
+            frame_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+            vis_resp = client.chat.completions.create(
+                model="meta-llama/llama-4-scout-17b-16e-instruct",
+                messages=[{"role": "user", "content": [
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{frame_b64}"}},
+                    {"type": "text", "text": "Describe in detail what you see in this video frame."}
+                ]}]
             )
-            speech_text = transcription
+            visual_analysis = vis_resp.choices[0].message.content
+        except Exception:
+            pass
 
-        video_clip2 = VideoFileClip(tmp_video_path)
-        frame = video_clip2.get_frame(video_clip2.duration / 2)
-        video_clip2.close()
+        combined_prompt = f"""The user uploaded a video. Analyze it fully using both sources below:
 
-        img = PIL.Image.fromarray(frame)
-        buffer = io.BytesIO()
-        img.save(buffer, format="JPEG")
-        frame_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+AUDIO TRANSCRIPT:
+{speech_text}
 
-        vision_response = client.chat.completions.create(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
-            messages=[{"role": "user", "content": [
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{frame_base64}"}},
-                {"type": "text", "text": "Describe what you see in this video frame."}
-            ]}]
-        )
-        visual_analysis = vision_response.choices[0].message.content
+VISUAL FRAME ANALYSIS:
+{visual_analysis}
 
-        combined_prompt = f"""SPEECH FROM VIDEO:\n{speech_text or 'No speech detected'}\n\nVISUAL ANALYSIS:\n{visual_analysis}\n\nUSER'S QUESTION: {user_message}"""
+USER'S QUESTION: {user_message}
+
+Give a detailed, helpful response based on the audio transcript and visual content."""
 
         chat = chats_col.find_one({"chat_id": chat_id, "user_id": session["user_id"]})
         messages = chat["messages"]
         messages.append({"role": "user", "content": f"[Video] {user_message}"})
-
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "system", "content": SYSTEM_PROMPT}] + messages + [{"role": "user", "content": combined_prompt}]
@@ -445,13 +468,15 @@ def analyze_video():
         messages.append({"role": "assistant", "content": ai_reply})
         save_chat_messages(chat_id, messages)
         chats_col.update_one({"chat_id": chat_id}, {"$set": {"title": "🎬 Video Analysis"}})
-
-        os.unlink(tmp_video_path)
-        os.unlink(tmp_audio_path)
         return jsonify({"reply": ai_reply, "transcript": speech_text})
 
     except Exception as e:
         return jsonify({"reply": f"Error processing video: {str(e)}"})
+    finally:
+        for p in [tmp_video_path, tmp_audio_path]:
+            if p and os.path.exists(p):
+                try: os.unlink(p)
+                except: pass
 
 @app.route("/generate-image", methods=["POST"])
 @login_required

@@ -224,6 +224,7 @@
         <div id="plusMenu">
           <button class="pmenu-item" onclick="closePlus();openWebSearch()">🌐 Web Search</button>
           <button class="pmenu-item" onclick="closePlus();openQuiz()">📝 Quiz Me</button>
+          <button class="pmenu-item" onclick="closePlus();openGenerateImage()">🎨 Generate Image</button>
           <button class="pmenu-item" onclick="closePlus();document.getElementById('fileInput').click()">📄 Upload File</button>
           <button class="pmenu-item" onclick="closePlus();document.getElementById('photoInput').click()">🖼️ Photos</button>
           <button class="pmenu-item" onclick="closePlus();openCamera()">📷 Camera</button>
@@ -243,6 +244,18 @@
 <input type="file" id="imageInput" accept="image/*" style="display:none" onchange="analyzeImage(this)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="analyzeImage(this)"/>
 <input type="file" id="videoInput" accept="video/*" style="display:none" onchange="uploadVideo(this)"/>
+
+<!-- Generate Image Modal -->
+<div class="modal-overlay" id="generateImageModal">
+  <div class="modal">
+    <h3>🎨 Generate Image</h3>
+    <input type="text" id="imagePromptInput" placeholder="Describe the image you want..."/>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('generateImageModal')">Cancel</button>
+      <button class="btn-primary" onclick="doGenerateImage()">Generate</button>
+    </div>
+  </div>
+</div>
 
 <!-- Web Search Modal -->
 <div class="modal-overlay" id="webSearchModal">
@@ -546,7 +559,7 @@
     input.value = '';
   }
 
-  // ── Video upload
+  // ── Video upload — show transcript too
   async function uploadVideo(input) {
     if (!currentChatId) await newChat();
     const file = input.files[0];
@@ -560,6 +573,9 @@
     const res = await fetch('/analyze-video', { method: 'POST', body: form });
     const data = await res.json();
     removeTyping();
+    if (data.transcript && data.transcript !== 'No speech detected') {
+      appendMessage('bot', `📝 Transcript: ${data.transcript}`);
+    }
     appendMessage('bot', data.reply);
     input.value = '';
     loadChatList();
@@ -611,6 +627,30 @@
   document.addEventListener('click', (e) => {
     if (!document.getElementById('plusWrap').contains(e.target)) closePlus();
   });
+
+  // ── Generate Image modal
+  function openGenerateImage() { document.getElementById('generateImageModal').classList.add('open'); }
+  async function doGenerateImage() {
+    const prompt = document.getElementById('imagePromptInput').value.trim();
+    if (!prompt) return;
+    closeModal('generateImageModal');
+    if (!currentChatId) await newChat();
+    appendMessage('user', `🎨 Generate image: ${prompt}`);
+    showTyping();
+    const res = await fetch('/generate-image', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, chat_id: currentChatId })
+    });
+    const data = await res.json();
+    removeTyping();
+    if (data.image_data) {
+      appendMessage('bot', 'Here is your generated image!', { image: data.image_data });
+    } else {
+      appendMessage('bot', data.error || 'Image generation failed.');
+    }
+    document.getElementById('imagePromptInput').value = '';
+    loadChatList();
+  }
 
   // ── Explore
   function openExplore() { document.getElementById('exploreModal').classList.add('open'); }
