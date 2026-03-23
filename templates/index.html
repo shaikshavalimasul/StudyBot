@@ -6,15 +6,14 @@
   <title>StudyBot — AI Study Assistant</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f1a; color: #fff; display: flex; height: 100vh; overflow: hidden; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f1a; color: #fff; display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
 
     /* Sidebar */
     #sidebar {
       width: 260px; min-width: 260px; background: #13131f; border-right: 1px solid #1e1e30;
       display: flex; flex-direction: column; padding: 16px; gap: 8px; overflow-y: auto;
-      transition: width 0.25s, min-width 0.25s, padding 0.25s;
+      transition: transform 0.3s ease;
     }
-    #sidebar.collapsed { width: 0; min-width: 0; padding: 0; overflow: hidden; border: none; }
     #sidebar h2 { font-size: 18px; font-weight: 800; color: #a78bfa; padding: 8px 4px; }
     #newChatBtn {
       padding: 10px 14px; background: #6c63ff; border: none; border-radius: 10px;
@@ -38,7 +37,7 @@
     #usernameDisplay { font-size: 12px; color: #555; padding: 6px 4px; }
 
     /* Main */
-    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 
     #chatHeader {
       padding: 16px 24px; border-bottom: 1px solid #1e1e30;
@@ -74,8 +73,8 @@
     @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
 
     #inputArea {
-      padding: 16px 24px; border-top: 1px solid #1e1e30; background: #13131f;
-      display: flex; flex-direction: column; gap: 10px;
+      padding: 12px 16px; border-top: 1px solid #1e1e30; background: #13131f;
+      display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
     }
     /* Plus menu */
     #plusWrap { position: relative; }
@@ -96,9 +95,9 @@
       cursor: pointer; display: flex; align-items: center; gap: 10px; background: none; border: none; text-align: left;
     }
     .pmenu-item:hover { background: #1e1e30; color: #fff; }
-    #inputRow { display: flex; gap: 10px; align-items: flex-end; }
+    #inputRow { display: flex; gap: 8px; align-items: flex-end; min-width: 0; }
     #userInput {
-      flex: 1; padding: 12px 16px; background: #1e1e30; border: 1px solid #2a2a3e;
+      flex: 1; min-width: 0; padding: 12px 16px; background: #1e1e30; border: 1px solid #2a2a3e;
       border-radius: 14px; color: #fff; font-size: 14px; outline: none; resize: none;
       max-height: 120px; font-family: inherit;
     }
@@ -162,25 +161,36 @@
     #captureCanvas { display: none; }
 
     @media (max-width: 700px) {
-      #sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 50; width: 260px; min-width: 260px; padding: 16px; }
-      #sidebar.collapsed { left: -270px; }
-      .msg { max-width: 90%; font-size: 13px; }
-      #chatHeader { padding: 12px 16px; }
-      #inputArea { padding: 10px 12px; }
+      #sidebar {
+        position: fixed; left: 0; top: 0; bottom: 0; z-index: 50;
+        width: 260px; min-width: 260px; padding: 16px;
+        transform: translateX(-100%);
+      }
+      #sidebar.open { transform: translateX(0); }
+      #sidebarOverlay {
+        display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 49;
+      }
+      #sidebarOverlay.open { display: block; }
+      .msg { max-width: 88%; font-size: 13px; }
+      #chatHeader { padding: 10px 14px; }
+      #inputArea { padding: 8px 10px; }
       #userInput { font-size: 13px; padding: 10px 12px; }
-      #sendBtn { padding: 10px 14px; font-size: 16px; }
-      #voiceBtn { padding: 10px 12px; font-size: 16px; }
-      #plusBtn { width: 36px; height: 36px; font-size: 20px; }
-      #messages { padding: 14px; gap: 12px; }
-      .modal { width: calc(100vw - 32px) !important; padding: 20px; }
-      .explore-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-      .explore-card { padding: 12px 8px; }
+      #sendBtn { padding: 10px 12px; font-size: 16px; flex-shrink: 0; }
+      #voiceBtn { padding: 10px 10px; font-size: 16px; flex-shrink: 0; }
+      #plusBtn { width: 36px; height: 36px; font-size: 20px; flex-shrink: 0; }
+      #messages { padding: 12px; gap: 12px; }
+      .modal { width: calc(100vw - 24px) !important; padding: 18px; }
+      .explore-grid { gap: 8px; }
+      .explore-card { padding: 10px 6px; }
       .explore-card .ec-icon { font-size: 22px; }
       #plusMenu { min-width: 170px; }
     }
   </style>
 </head>
 <body>
+
+<!-- Sidebar overlay (mobile) -->
+<div id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
 <!-- Sidebar -->
 <div id="sidebar">
@@ -324,7 +334,10 @@
   };
 
   function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('collapsed');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
   }
 
   // ── Chat list
