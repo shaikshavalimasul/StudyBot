@@ -523,5 +523,13 @@ Keep track of score. Be encouraging! Start with your first question now!"""
     chats_col.update_one({"chat_id": chat_id}, {"$set": {"title": f"📝 Quiz: {topic}"[:30]}})
     return jsonify({"reply": ai_reply})
 
+@app.route("/sw.js")
+def sw():
+    return app.send_static_file("sw.js"), 200, {"Content-Type": "application/javascript"}
+
+@app.route("/manifest.json")
+def manifest():
+    return app.send_static_file("manifest.json"), 200, {"Content-Type": "application/json"}
+
 if __name__ == "__main__":
     app.run(debug=True, use_reloader=False)

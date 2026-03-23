@@ -4,6 +4,14 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>StudyBot — AI Study Assistant</title>
+  <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#6c63ff"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="StudyBot"/>
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png"/>
+  <link rel="icon" href="/static/icons/icon-192.png"/>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f1a; color: #fff; display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
@@ -335,6 +343,11 @@
 </div>
 
 <script>
+  // ── Register Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+
   let currentChatId = null;
 
   // ── Init

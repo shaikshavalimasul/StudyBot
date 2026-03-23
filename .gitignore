@@ -4,6 +4,6 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
-*.jpg
 *.mp4
 *.mp3
+gen_icons.py
