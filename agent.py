@@ -1,5 +1,8 @@
 from groq import Groq
-client = Groq(api_key="your_groq_api_key_here")
+from dotenv import load_dotenv
+import os
+load_dotenv()
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 # This is the agent's personality and purpose
 SYSTEM_PROMPT = """

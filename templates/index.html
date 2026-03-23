@@ -1,1079 +1,647 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>StudyBot 🎓</title>
+  <title>StudyBot — AI Study Assistant</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f1a; color: #fff; display: flex; height: 100vh; overflow: hidden; }
 
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f9f9f9;
-      display: flex;
-      height: 100vh;
-      overflow: hidden;
+    /* Sidebar */
+    #sidebar {
+      width: 260px; min-width: 260px; background: #13131f; border-right: 1px solid #1e1e30;
+      display: flex; flex-direction: column; padding: 16px; gap: 8px; overflow-y: auto;
+      transition: width 0.25s, min-width 0.25s, padding 0.25s;
     }
-
-    /* ─── SIDEBAR ─── */
-    .sidebar {
-      width: 260px;
-      background: #ffffff;
-      border-right: 1px solid #e5e5e5;
-      display: flex;
-      flex-direction: column;
-      padding: 16px;
-      gap: 8px;
+    #sidebar.collapsed { width: 0; min-width: 0; padding: 0; overflow: hidden; border: none; }
+    #sidebar h2 { font-size: 18px; font-weight: 800; color: #a78bfa; padding: 8px 4px; }
+    #newChatBtn {
+      padding: 10px 14px; background: #6c63ff; border: none; border-radius: 10px;
+      color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; text-align: left;
     }
-
-    .sidebar h2 {
-      font-size: 20px;
-      font-weight: 700;
-      color: #1a1a1a;
-      padding: 8px 0;
-    }
-
-    .new-chat-btn {
-      padding: 10px 16px;
-      background: #6c63ff;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-      text-align: left;
-      transition: background 0.2s;
-    }
-
-    .new-chat-btn:hover { background: #5a52d5; }
-
-    .chat-history {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      margin-top: 8px;
-    }
-
+    #newChatBtn:hover { background: #5a52e0; }
     .chat-item {
-      padding: 10px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      color: #333;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      transition: background 0.2s;
+      padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 13px;
+      color: #aaa; display: flex; justify-content: space-between; align-items: center;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-
-    .chat-item:hover { background: #f0f0f0; }
-    .chat-item.active { background: #ede9ff; color: #6c63ff; font-weight: 600; }
-
-    /* ─── MAIN CHAT AREA ─── */
-    .main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
+    .chat-item:hover, .chat-item.active { background: #1e1e30; color: #fff; }
+    .chat-item .del-btn { font-size: 12px; color: #555; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+    .chat-item .del-btn:hover { color: #ff6b6b; background: rgba(255,107,107,0.1); }
+    .sidebar-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid #1e1e30; }
+    #logoutBtn {
+      width: 100%; padding: 10px; background: none; border: 1px solid #2a2a3e;
+      border-radius: 10px; color: #888; font-size: 13px; cursor: pointer;
     }
+    #logoutBtn:hover { border-color: #ff6b6b; color: #ff6b6b; }
+    #usernameDisplay { font-size: 12px; color: #555; padding: 6px 4px; }
 
-    .chat-header {
-      padding: 18px 24px;
-      border-bottom: 1px solid #e5e5e5;
-      background: #ffffff;
-      font-size: 18px;
-      font-weight: 700;
-      color: #1a1a1a;
+    /* Main */
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    #chatHeader {
+      padding: 16px 24px; border-bottom: 1px solid #1e1e30;
+      display: flex; align-items: center; gap: 12px; background: #13131f;
     }
+    #chatTitle { font-size: 16px; font-weight: 600; color: #fff; flex: 1; }
+    #hamburger { display: block; background: none; border: none; color: #aaa; font-size: 20px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+    #hamburger:hover { background: #1e1e30; color: #fff; }
 
-    .chat-box {
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
+    #messages {
+      flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px;
     }
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-thumb { background: #2a2a3e; border-radius: 4px; }
 
-    .chat-box::-webkit-scrollbar { width: 4px; }
-    .chat-box::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
-
-    .message {
-      max-width: 70%;
-      padding: 14px 18px;
-      border-radius: 18px;
-      font-size: 15px;
-      line-height: 1.6;
-      animation: fadeIn 0.3s ease;
+    .msg { max-width: 75%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.6; word-wrap: break-word; }
+    .msg.user { background: #6c63ff; color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .msg.bot { background: #1e1e30; color: #ddd; align-self: flex-start; border-bottom-left-radius: 4px; }
+    .msg.bot .speak-btn {
+      display: inline-block; margin-top: 6px; background: none; border: 1px solid #2a2a3e;
+      border-radius: 20px; color: #888; font-size: 11px; padding: 3px 10px; cursor: pointer;
     }
+    .msg.bot .speak-btn:hover { border-color: #6c63ff; color: #a78bfa; }
+    .msg.bot .speak-btn.speaking { border-color: #a78bfa; color: #a78bfa; }
+    .msg img { max-width: 100%; border-radius: 10px; margin-top: 8px; display: block; }
+    .msg .sources { margin-top: 8px; font-size: 12px; color: #888; }
+    .msg .sources a { color: #a78bfa; text-decoration: none; }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
+    .typing { display: flex; gap: 4px; align-items: center; padding: 14px 16px; }
+    .typing span { width: 8px; height: 8px; background: #6c63ff; border-radius: 50%; animation: bounce 1s infinite; }
+    .typing span:nth-child(2) { animation-delay: 0.15s; }
+    .typing span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+
+    #inputArea {
+      padding: 16px 24px; border-top: 1px solid #1e1e30; background: #13131f;
+      display: flex; flex-direction: column; gap: 10px;
     }
-
-    .user-msg {
-      background: #6c63ff;
-      color: white;
-      align-self: flex-end;
-      border-bottom-right-radius: 4px;
+    /* Plus menu */
+    #plusWrap { position: relative; }
+    #plusBtn {
+      width: 40px; height: 40px; background: #1e1e30; border: 1px solid #2a2a3e;
+      border-radius: 12px; color: #aaa; font-size: 22px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
-
-    .bot-msg {
-      background: #ffffff;
-      color: #1a1a1a;
-      align-self: flex-start;
-      border-bottom-left-radius: 4px;
-      border: 1px solid #e5e5e5;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    #plusBtn:hover { border-color: #6c63ff; color: #a78bfa; }
+    #plusMenu {
+      display: none; position: absolute; bottom: 52px; left: 0;
+      background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 14px;
+      padding: 8px; min-width: 190px; z-index: 50; flex-direction: column; gap: 2px;
     }
-
-    .typing {
-      background: #ffffff;
-      color: #999;
-      align-self: flex-start;
-      padding: 14px 18px;
-      border-radius: 18px;
-      border-bottom-left-radius: 4px;
-      font-size: 14px;
-      font-style: italic;
-      border: 1px solid #e5e5e5;
+    #plusMenu.open { display: flex; }
+    .pmenu-item {
+      padding: 9px 14px; border-radius: 10px; font-size: 13px; color: #ccc;
+      cursor: pointer; display: flex; align-items: center; gap: 10px; background: none; border: none; text-align: left;
     }
-
-    /* ─── FILE PREVIEW BADGE ─── */
-    .file-preview {
-      display: none;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 16px;
-      background: #f0edff;
-      border-top: 1px solid #e5e5e5;
-      font-size: 13px;
-      color: #333;
+    .pmenu-item:hover { background: #1e1e30; color: #fff; }
+    #inputRow { display: flex; gap: 10px; align-items: flex-end; }
+    #userInput {
+      flex: 1; padding: 12px 16px; background: #1e1e30; border: 1px solid #2a2a3e;
+      border-radius: 14px; color: #fff; font-size: 14px; outline: none; resize: none;
+      max-height: 120px; font-family: inherit;
     }
-
-    .file-preview.active { display: flex; }
-
-    .file-preview-name {
-      flex: 1;
-      font-weight: 600;
-      color: #6c63ff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    #userInput:focus { border-color: #6c63ff; }
+    #sendBtn {
+      padding: 12px 20px; background: #6c63ff; border: none; border-radius: 14px;
+      color: #fff; font-size: 18px; cursor: pointer;
     }
-
-    .file-preview-remove {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 16px;
-      color: #999;
-      padding: 0 4px;
-      border-radius: 50%;
-      transition: background 0.2s;
+    #sendBtn:hover { background: #5a52e0; }
+    #voiceBtn {
+      padding: 12px 14px; background: #1e1e30; border: 1px solid #2a2a3e;
+      border-radius: 14px; color: #aaa; font-size: 18px; cursor: pointer;
     }
+    #voiceBtn:hover { border-color: #6c63ff; color: #a78bfa; }
+    #voiceBtn.listening { border-color: #ff6b6b; color: #ff6b6b; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
 
-    .file-preview-remove:hover { background: #e0e0e0; color: #333; }
-
-    /* ─── PLUS MENU ─── */
-    .plus-menu {
-      position: fixed;
-      bottom: 80px;
-      left: 280px;
-      background: white;
-      border: 1px solid #e5e5e5;
-      border-radius: 14px;
-      padding: 8px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-      z-index: 1000;
-      display: none;
-      min-width: 180px;
+    #emptyState {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 12px; color: #444;
     }
+    #emptyState .icon { font-size: 48px; }
+    #emptyState p { font-size: 15px; }
 
-    .plus-menu button {
-      display: block;
-      width: 100%;
-      padding: 10px 14px;
-      background: none;
-      border: none;
-      border-radius: 8px;
-      text-align: left;
-      cursor: pointer;
-      font-size: 14px;
-      color: #333;
-      transition: background 0.2s;
+    /* Modals */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      align-items: center; justify-content: center; z-index: 100;
     }
-
-    .plus-menu button:hover { background: #f0f0f0; }
-
-    /* ─── INPUT BUTTONS ─── */
-    .icon-btn {
-      padding: 14px 20px;
-      background: #f0f0f0;
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      font-size: 22px;
-      font-weight: 700;
-      transition: background 0.2s;
-      white-space: nowrap;
-      min-width: 50px;
-      text-align: center;
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #1a1a2e; border-radius: 16px; padding: 28px; width: 340px;
+      display: flex; flex-direction: column; gap: 14px;
     }
-
-    .icon-btn:hover { background: #e0e0e0; }
-
-    /* ─── INPUT AREA ─── */
-    .input-area {
-      padding: 16px 24px;
-      background: #ffffff;
-      border-top: 1px solid #e5e5e5;
-      display: flex;
-      gap: 12px;
-      align-items: center;
+    .modal h3 { font-size: 18px; font-weight: 700; }
+    .modal input, .modal textarea {
+      padding: 10px 14px; background: #0f0f1a; border: 1px solid #2a2a3e;
+      border-radius: 10px; color: #fff; font-size: 14px; outline: none; width: 100%;
     }
-
-    input {
-      flex: 1;
-      padding: 14px 20px;
-      border-radius: 50px;
-      border: 1px solid #e5e5e5;
-      background: #f9f9f9;
-      color: #1a1a1a;
-      font-size: 15px;
-      outline: none;
-      transition: border 0.2s;
+    .modal input:focus, .modal textarea:focus { border-color: #6c63ff; }
+    .modal-btns { display: flex; gap: 10px; }
+    .modal-btns button {
+      flex: 1; padding: 10px; border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
     }
+    .btn-primary { background: #6c63ff; color: #fff; }
+    .btn-cancel { background: #1e1e30; color: #aaa; }
 
-    input:focus { border-color: #6c63ff; }
-    input::placeholder { color: #aaa; }
-
-    button.send-btn {
-      padding: 14px 24px;
-      background: #6c63ff;
-      color: white;
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 600;
-      transition: background 0.2s;
-    }
-
-    button.send-btn:hover { background: #5a52d5; }
-
-    /* ─── CONTEXT MENU ─── */
-    .context-menu {
-      position: fixed;
-      background: white;
-      border: 1px solid #e5e5e5;
-      border-radius: 10px;
-      padding: 6px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-      z-index: 1000;
-      display: none;
-      min-width: 140px;
-    }
-
-    .context-menu button {
-      display: block;
-      width: 100%;
-      padding: 10px 14px;
-      background: none;
-      border: none;
-      border-radius: 6px;
-      text-align: left;
-      cursor: pointer;
-      font-size: 14px;
-      color: #333;
-      transition: background 0.2s;
-    }
-
-    .context-menu button:hover { background: #f0f0f0; }
-    .context-menu .delete-btn { color: #e53935; }
-    .context-menu .delete-btn:hover { background: #ffeaea; }
-
-    /* ─── EXPLORE APPS POPUP ─── */
-    .explore-overlay {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.4);
-      z-index: 2000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .explore-overlay.active { display: flex; }
-
-    .explore-popup {
-      background: white;
-      border-radius: 20px;
-      padding: 24px;
-      width: 480px;
-      max-height: 80vh;
-      overflow-y: auto;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-    }
-
-    .explore-popup h2 {
-      font-size: 20px;
-      font-weight: 700;
-      color: #1a1a1a;
-      margin-bottom: 16px;
-    }
-
-    .explore-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
+    /* Explore Modal */
+    .explore-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-height: 360px; overflow-y: auto; }
     .explore-card {
-      padding: 14px;
-      border-radius: 12px;
-      border: 1px solid #e5e5e5;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-decoration: none;
-      display: block;
+      background: #0f0f1a; border: 1px solid #2a2a3e; border-radius: 14px;
+      padding: 16px 12px; text-align: center; cursor: pointer; transition: border-color 0.2s;
     }
+    .explore-card:hover { border-color: #6c63ff; }
+    .explore-card .ec-icon { font-size: 28px; margin-bottom: 6px; }
+    .explore-card .ec-label { font-size: 12px; color: #aaa; }
 
-    .explore-card:hover {
-      border-color: #6c63ff;
-      background: #f5f3ff;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(108,99,255,0.15);
-    }
+    /* Camera Modal */
+    #cameraPreview { width: 100%; border-radius: 10px; background: #000; max-height: 240px; }
+    #captureCanvas { display: none; }
 
-    .explore-card-icon { font-size: 24px; margin-bottom: 6px; }
-    .explore-card-name { font-size: 14px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
-    .explore-card-desc { font-size: 12px; color: #888; line-height: 1.4; }
-
-    .explore-close {
-      width: 100%;
-      margin-top: 16px;
-      padding: 12px;
-      background: #f0f0f0;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-      color: #333;
-      transition: background 0.2s;
-    }
-
-    .explore-close:hover { background: #e0e0e0; }
-
-    /* ─── USER INFO ─── */
-    .user-info {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 12px;
-      background: #f5f3ff;
-      border-radius: 10px;
-      margin-top: auto;
-    }
-    .user-info span { font-size: 13px; font-weight: 600; color: #6c63ff; }
-    .logout-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 13px;
-      color: #999;
-      padding: 4px 8px;
-      border-radius: 6px;
-      transition: background 0.2s;
-    }
-    .logout-btn:hover { background: #e0e0e0; color: #333; }
-
-    /* ─── EMPTY STATE ─── */
-    .empty-state {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: #aaa;
-      gap: 12px;
-    }
-
-    .empty-state h2 { font-size: 28px; color: #1a1a1a; }
-    .empty-state p { font-size: 15px; }
-
-    @keyframes shimmer {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
+    @media (max-width: 700px) {
+      #sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 50; width: 260px; min-width: 260px; padding: 16px; }
+      #sidebar.collapsed { left: -270px; }
+      .msg { max-width: 90%; font-size: 13px; }
+      #chatHeader { padding: 12px 16px; }
+      #inputArea { padding: 10px 12px; }
+      #userInput { font-size: 13px; padding: 10px 12px; }
+      #sendBtn { padding: 10px 14px; font-size: 16px; }
+      #voiceBtn { padding: 10px 12px; font-size: 16px; }
+      #plusBtn { width: 36px; height: 36px; font-size: 20px; }
+      #messages { padding: 14px; gap: 12px; }
+      .modal { width: calc(100vw - 32px) !important; padding: 20px; }
+      .explore-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .explore-card { padding: 12px 8px; }
+      .explore-card .ec-icon { font-size: 22px; }
+      #plusMenu { min-width: 170px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Hidden file inputs -->
-  <input type="file" id="imageInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)"/>
-  <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(event)"/>
-  <input type="file" id="fileInput" accept=".pdf,.txt,.csv,.zip" style="display:none" onchange="handleFileUpload(event)"/>
-  <input type="file" id="videoInput" accept="video/*" style="display:none" onchange="handleVideoUpload(event)"/>
+<!-- Sidebar -->
+<div id="sidebar">
+  <h2>🎓 StudyBot</h2>
+  <div id="usernameDisplay"></div>
+  <button id="newChatBtn" onclick="newChat()">＋ New Chat</button>
+  <div id="chatList"></div>
+  <div class="sidebar-footer">
+    <button id="logoutBtn" onclick="logout()">🚪 Logout</button>
+  </div>
+</div>
 
-  <!-- EXPLORE APPS POPUP -->
-  <div class="explore-overlay" id="exploreOverlay">
-    <div class="explore-popup">
-      <h2>🔍 Explore Study Apps</h2>
-      <div class="explore-grid">
-        <a class="explore-card" href="https://khanacademy.org" target="_blank">
-          <div class="explore-card-icon">📚</div>
-          <div class="explore-card-name">Khan Academy</div>
-          <div class="explore-card-desc">Free lessons on Math, Science, History and more</div>
-        </a>
-        <a class="explore-card" href="https://wolframalpha.com" target="_blank">
-          <div class="explore-card-icon">🧮</div>
-          <div class="explore-card-name">Wolfram Alpha</div>
-          <div class="explore-card-desc">Solve complex Math and Science problems instantly</div>
-        </a>
-        <a class="explore-card" href="https://scholar.google.com" target="_blank">
-          <div class="explore-card-icon">📖</div>
-          <div class="explore-card-name">Google Scholar</div>
-          <div class="explore-card-desc">Find research papers and academic articles</div>
-        </a>
-        <a class="explore-card" href="https://quizlet.com" target="_blank">
-          <div class="explore-card-icon">🎯</div>
-          <div class="explore-card-name">Quizlet</div>
-          <div class="explore-card-desc">Study with flashcards and practice tests</div>
-        </a>
-        <a class="explore-card" href="https://apps.ankiweb.net" target="_blank">
-          <div class="explore-card-icon">🧠</div>
-          <div class="explore-card-name">Anki</div>
-          <div class="explore-card-desc">Smart flashcards using spaced repetition</div>
-        </a>
-        <a class="explore-card" href="https://notion.so" target="_blank">
-          <div class="explore-card-icon">📝</div>
-          <div class="explore-card-name">Notion</div>
-          <div class="explore-card-desc">Organize your notes and study plans</div>
-        </a>
-        <a class="explore-card" href="https://wikipedia.org" target="_blank">
-          <div class="explore-card-icon">🌐</div>
-          <div class="explore-card-name">Wikipedia</div>
-          <div class="explore-card-desc">Free encyclopedia for any topic</div>
-        </a>
-        <a class="explore-card" href="https://w3schools.com" target="_blank">
-          <div class="explore-card-icon">💻</div>
-          <div class="explore-card-name">W3Schools</div>
-          <div class="explore-card-desc">Learn HTML, CSS, Python and more</div>
-        </a>
-        <a class="explore-card" href="https://coursera.org" target="_blank">
-          <div class="explore-card-icon">🎓</div>
-          <div class="explore-card-name">Coursera</div>
-          <div class="explore-card-desc">Online courses from top universities</div>
-        </a>
-        <a class="explore-card" href="https://youtube.com" target="_blank">
-          <div class="explore-card-icon">▶️</div>
-          <div class="explore-card-name">YouTube</div>
-          <div class="explore-card-desc">Watch tutorials and educational videos</div>
-        </a>
+<!-- Main -->
+<div id="main">
+  <div id="chatHeader">
+    <button id="hamburger" onclick="toggleSidebar()">☰</button>
+    <span id="chatTitle">Select or start a chat</span>
+  </div>
+
+  <div id="messages">
+    <div id="emptyState">
+      <div class="icon">🎓</div>
+      <p>Start a new chat to begin studying!</p>
+    </div>
+  </div>
+
+  <div id="inputArea">
+    <div id="inputRow">
+      <div id="plusWrap">
+        <button id="plusBtn" onclick="togglePlusMenu()" title="More options">＋</button>
+        <div id="plusMenu">
+          <button class="pmenu-item" onclick="closePlus();openWebSearch()">🌐 Web Search</button>
+          <button class="pmenu-item" onclick="closePlus();openQuiz()">📝 Quiz Me</button>
+          <button class="pmenu-item" onclick="closePlus();document.getElementById('fileInput').click()">📄 Upload File</button>
+          <button class="pmenu-item" onclick="closePlus();document.getElementById('photoInput').click()">🖼️ Photos</button>
+          <button class="pmenu-item" onclick="closePlus();openCamera()">📷 Camera</button>
+          <button class="pmenu-item" onclick="closePlus();document.getElementById('videoInput').click()">🎬 Upload Video</button>
+          <button class="pmenu-item" onclick="closePlus();openExplore()">🧩 Explore Apps</button>
+        </div>
       </div>
-      <button class="explore-close" onclick="closeExplore()">✕ Close</button>
+      <textarea id="userInput" rows="1" placeholder="Ask anything..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button id="voiceBtn" onclick="toggleVoice()" title="Voice input">🎤</button>
+      <button id="sendBtn" onclick="sendMessage()">➤</button>
     </div>
   </div>
+</div>
 
-  <!-- PLUS MENU -->
-  <div class="plus-menu" id="plusMenu">
-    <button onclick="handlePlus('camera')">📷 Camera</button>
-    <button onclick="handlePlus('photos')">🖼️ Photos</button>
-    <button onclick="handlePlus('files')">📁 Files</button>
-    <button onclick="handlePlus('quiz')">📝 Quiz Me</button>
-    <button onclick="handlePlus('websearch')">🌐 Web Search</button>
-    <button onclick="handlePlus('video')">🎬 Video</button>
-    <button onclick="handlePlus('imagine')">🎨 Generate Image</button>
-    <button onclick="handlePlus('explore')">🔍 Explore Apps</button>
-  </div>
+<!-- Hidden file inputs -->
+<input type="file" id="fileInput" accept=".pdf,.txt,.csv,.zip" style="display:none" onchange="uploadFile(this)"/>
+<input type="file" id="imageInput" accept="image/*" style="display:none" onchange="analyzeImage(this)"/>
+<input type="file" id="photoInput" accept="image/*" style="display:none" onchange="analyzeImage(this)"/>
+<input type="file" id="videoInput" accept="video/*" style="display:none" onchange="uploadVideo(this)"/>
 
-  <!-- CONTEXT MENU -->
-  <div class="context-menu" id="contextMenu">
-    <button onclick="renameChat()">✏️ Rename</button>
-    <button class="delete-btn" onclick="deleteChat()">🗑️ Delete</button>
-  </div>
-
-  <!-- SIDEBAR -->
-  <div class="sidebar">
-    <h2>🎓 StudyBot</h2>
-    <button class="new-chat-btn" onclick="createNewChat()">+ New Chat</button>
-    <div class="chat-history" id="chatHistory"></div>
-    <div class="user-info">
-      <span>👤 {{ username }}</span>
-      <button class="logout-btn" onclick="logout()">Logout</button>
+<!-- Web Search Modal -->
+<div class="modal-overlay" id="webSearchModal">
+  <div class="modal">
+    <h3>🌐 Web Search</h3>
+    <input type="text" id="searchQuery" placeholder="Enter search query..."/>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('webSearchModal')">Cancel</button>
+      <button class="btn-primary" onclick="doWebSearch()">Search</button>
     </div>
   </div>
+</div>
 
-  <!-- MAIN AREA -->
-  <div class="main">
-    <div class="chat-header" id="chatHeader">Select a chat or start a new one</div>
-
-    <div id="emptyState" class="empty-state">
-      <h2>🎓 Welcome to StudyBot!</h2>
-      <p>Click "+ New Chat" to start studying</p>
-    </div>
-
-    <div class="chat-box" id="chatBox" style="display:none;"></div>
-
-    <!-- File Preview Badge -->
-    <div class="file-preview" id="filePreview">
-      <span id="filePreviewIcon">📄</span>
-      <span class="file-preview-name" id="filePreviewName">filename.pdf</span>
-      <button class="file-preview-remove" onclick="removePendingFile()">✕</button>
-    </div>
-
-    <div class="input-area" id="inputArea" style="display:none;">
-      <button class="icon-btn" onclick="togglePlusMenu()">＋</button>
-      <input type="text" id="userInput" placeholder="Ask me anything..." />
-      <button class="icon-btn" id="voiceBtn" onclick="startVoice()">🎤</button>
-      <button class="send-btn" onclick="sendMessage()">Send</button>
+<!-- Camera Modal -->
+<div class="modal-overlay" id="cameraModal">
+  <div class="modal" style="width:400px">
+    <h3>📷 Camera</h3>
+    <video id="cameraPreview" autoplay playsinline></video>
+    <canvas id="captureCanvas"></canvas>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeCamera()">Cancel</button>
+      <button class="btn-primary" onclick="capturePhoto()">📸 Capture & Analyze</button>
     </div>
   </div>
+</div>
 
-  <script>
-    let currentChatId = null;
-    let plusMenuOpen = false;
-    let pendingFile = null;
-    let pendingFileType = null;
-    let rightClickedChatId = null;
-    let longPressTimer = null;
-    let waitingForImagePrompt = false;
-    let isListening = false;
-    let recognition = null;
+<!-- Explore Apps Modal -->
+<div class="modal-overlay" id="exploreModal">
+  <div class="modal" style="width:380px">
+    <h3>🧩 Explore Apps</h3>
+    <div class="explore-grid">
+      <div class="explore-card" onclick="window.open('https://www.w3schools.com','_blank')">
+        <div class="ec-icon">🟢</div><div class="ec-label">W3Schools</div>
+      </div>
+      <div class="explore-card" onclick="window.open('https://www.khanacademy.org','_blank')">
+        <div class="ec-icon">🎓</div><div class="ec-label">Khan Academy</div>
+      </div>
+      <div class="explore-card" onclick="window.open('https://www.youtube.com','_blank')">
+        <div class="ec-icon">▶️</div><div class="ec-label">YouTube</div>
+      </div>
+      <div class="explore-card" onclick="window.open('https://www.linkedin.com/learning','_blank')">
+        <div class="ec-icon">💼</div><div class="ec-label">LinkedIn Learning</div>
+      </div>
+      <div class="explore-card" onclick="window.open('https://www.coursera.org','_blank')">
+        <div class="ec-icon">📚</div><div class="ec-label">Coursera</div>
+      </div>
+      <div class="explore-card" onclick="window.open('https://www.udemy.com','_blank')">
+        <div class="ec-icon">🎯</div><div class="ec-label">Udemy</div>
+      </div>
+      <div class="explore-card" onclick="window.open('https://github.com','_blank')">
+        <div class="ec-icon">🐙</div><div class="ec-label">GitHub</div>
+      </div>
+      <div class="explore-card" onclick="window.open('https://stackoverflow.com','_blank')">
+        <div class="ec-icon">💬</div><div class="ec-label">Stack Overflow</div>
+      </div>
+      <div class="explore-card" onclick="window.open('https://www.geeksforgeeks.org','_blank')">
+        <div class="ec-icon">🧠</div><div class="ec-label">GeeksforGeeks</div>
+      </div>
+      <div class="explore-card" onclick="window.open('https://leetcode.com','_blank')">
+        <div class="ec-icon">⚡</div><div class="ec-label">LeetCode</div>
+      </div>
+    </div>
+    <button class="btn-cancel" style="width:100%;margin-top:4px" onclick="closeModal('exploreModal')">Close</button>
+  </div>
+</div>
 
-    document.getElementById('userInput').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') sendMessage();
+<!-- Quiz Modal -->
+<div class="modal-overlay" id="quizModal">
+  <div class="modal">
+    <h3>📝 Quiz Mode</h3>
+    <input type="text" id="quizTopic" placeholder="Enter topic (e.g. Photosynthesis)"/>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('quizModal')">Cancel</button>
+      <button class="btn-primary" onclick="startQuiz()">Start Quiz</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentChatId = null;
+
+  // ── Init
+  window.onload = async () => {
+    const res = await fetch('/me');
+    const data = await res.json();
+    if (!data.logged_in) { window.location.href = '/login'; return; }
+    document.getElementById('usernameDisplay').innerText = '👤 ' + data.username;
+    loadChatList();
+  };
+
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('collapsed');
+  }
+
+  // ── Chat list
+  async function loadChatList() {
+    const res = await fetch('/get-chats');
+    const data = await res.json();
+    const list = document.getElementById('chatList');
+    list.innerHTML = '';
+    data.chats.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'chat-item' + (c.id === currentChatId ? ' active' : '');
+      div.innerHTML = `<span onclick="loadChat('${c.id}')" style="flex:1;overflow:hidden;text-overflow:ellipsis">${c.title}</span>
+        <span class="del-btn" onclick="deleteChat('${c.id}')">✕</span>`;
+      list.appendChild(div);
     });
+  }
 
-    window.onload = function() {
-      loadChatHistory();
+  async function newChat() {
+    const res = await fetch('/new-chat', { method: 'POST' });
+    const data = await res.json();
+    currentChatId = data.chat_id;
+    document.getElementById('messages').innerHTML = '';
+    document.getElementById('chatTitle').innerText = 'New Chat';
+    loadChatList();
+  }
+
+  async function loadChat(chatId) {
+    currentChatId = chatId;
+    const res = await fetch('/load-chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId })
+    });
+    const data = await res.json();
+    document.getElementById('chatTitle').innerText = data.title;
+    const msgs = document.getElementById('messages');
+    msgs.innerHTML = '';
+    data.messages.forEach(m => {
+      if (m.content.startsWith('[Generated Image]')) return;
+      if (m.content === 'Asked user for image details') return;
+      appendMessage(m.role === 'user' ? 'user' : 'bot', m.content);
+    });
+    loadChatList();
+  }
+
+  async function deleteChat(chatId) {
+    await fetch('/delete-chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId })
+    });
+    if (currentChatId === chatId) {
+      currentChatId = null;
+      document.getElementById('messages').innerHTML = `<div id="emptyState"><div class="icon">🎓</div><p>Start a new chat to begin studying!</p></div>`;
+      document.getElementById('chatTitle').innerText = 'Select or start a chat';
+    }
+    loadChatList();
+  }
+
+  // ── Messaging
+  function appendMessage(role, content, extra) {
+    const emptyState = document.getElementById('emptyState');
+    if (emptyState) emptyState.remove();
+
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'msg ' + role;
+
+    if (extra && extra.image) {
+      div.innerHTML = `${content}<br><img src="${extra.image}" alt="Generated image"/>`;
+    } else if (extra && extra.sources) {
+      let srcHtml = '<div class="sources">Sources: ';
+      extra.sources.forEach((s, i) => { srcHtml += `<a href="${s.link}" target="_blank">[${i+1}]</a> `; });
+      srcHtml += '</div>';
+      div.innerHTML = content + srcHtml;
+    } else {
+      div.innerText = content;
+    }
+
+    if (role === 'bot') {
+      const btn = document.createElement('button');
+      btn.className = 'speak-btn';
+      btn.innerText = '🔊 Speak';
+      btn.onclick = () => speakText(content, btn);
+      div.appendChild(btn);
+    }
+
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  // ── Text-to-speech
+  let currentUtterance = null;
+  function speakText(text, btn) {
+    if (currentUtterance) { speechSynthesis.cancel(); currentUtterance = null; btn.innerText = '🔊 Speak'; btn.classList.remove('speaking'); return; }
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.onstart = () => { btn.innerText = '⏹ Stop'; btn.classList.add('speaking'); };
+    utter.onend = () => { btn.innerText = '🔊 Speak'; btn.classList.remove('speaking'); currentUtterance = null; };
+    currentUtterance = utter;
+    speechSynthesis.speak(utter);
+  }
+
+  // ── Voice input
+  let recognition = null;
+  function toggleVoice() {
+    const btn = document.getElementById('voiceBtn');
+    if (recognition) { recognition.stop(); return; }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert('Speech recognition not supported in this browser.'); return; }
+    recognition = new SR();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.onstart = () => { btn.classList.add('listening'); btn.title = 'Listening... click to stop'; };
+    recognition.onresult = (e) => { document.getElementById('userInput').value = e.results[0][0].transcript; autoResize(document.getElementById('userInput')); };
+    recognition.onend = () => { btn.classList.remove('listening'); btn.title = 'Voice input'; recognition = null; };
+    recognition.onerror = () => { btn.classList.remove('listening'); recognition = null; };
+    recognition.start();
+  }
+
+  function showTyping() {
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'msg bot typing';
+    div.id = 'typingIndicator';
+    div.innerHTML = '<span></span><span></span><span></span>';
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('typingIndicator');
+    if (t) t.remove();
+  }
+
+  async function sendMessage() {
+    if (!currentChatId) { await newChat(); }
+    const input = document.getElementById('userInput');
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    input.style.height = 'auto';
+    appendMessage('user', msg);
+    showTyping();
+
+    const res = await fetch('/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, chat_id: currentChatId })
+    });
+    const data = await res.json();
+    removeTyping();
+
+    if (data.image_data) {
+      appendMessage('bot', data.reply, { image: data.image_data });
+    } else {
+      appendMessage('bot', data.reply);
+    }
+    loadChatList();
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  // ── File upload
+  async function uploadFile(input) {
+    if (!currentChatId) await newChat();
+    const file = input.files[0];
+    if (!file) return;
+    appendMessage('user', `📄 Uploaded: ${file.name}`);
+    showTyping();
+    const form = new FormData();
+    form.append('file', file);
+    form.append('chat_id', currentChatId);
+    form.append('message', 'Please analyze this file.');
+    const res = await fetch('/upload-file', { method: 'POST', body: form });
+    const data = await res.json();
+    removeTyping();
+    appendMessage('bot', data.reply);
+    input.value = '';
+    loadChatList();
+  }
+
+  // ── Image analysis
+  async function analyzeImage(input) {
+    if (!currentChatId) await newChat();
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      appendMessage('user', '🖼️ Analyzing image...');
+      showTyping();
+      const res = await fetch('/analyze-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: e.target.result, message: 'What do you see in this image?', chat_id: currentChatId })
+      });
+      const data = await res.json();
+      removeTyping();
+      appendMessage('bot', data.reply);
+      loadChatList();
     };
+    reader.readAsDataURL(file);
+    input.value = '';
+  }
 
-    // ── Toggle plus menu
-    function togglePlusMenu() {
-      const menu = document.getElementById('plusMenu');
-      plusMenuOpen = !plusMenuOpen;
-      menu.style.display = plusMenuOpen ? 'block' : 'none';
-    }
+  // ── Video upload
+  async function uploadVideo(input) {
+    if (!currentChatId) await newChat();
+    const file = input.files[0];
+    if (!file) return;
+    appendMessage('user', `🎬 Uploaded video: ${file.name}`);
+    showTyping();
+    const form = new FormData();
+    form.append('video', file);
+    form.append('chat_id', currentChatId);
+    form.append('message', 'Analyze this video and explain what you see.');
+    const res = await fetch('/analyze-video', { method: 'POST', body: form });
+    const data = await res.json();
+    removeTyping();
+    appendMessage('bot', data.reply);
+    input.value = '';
+    loadChatList();
+  }
 
-    // ── Close menus when clicking anywhere else
-    document.addEventListener('click', function(e) {
-      const plusMenu = document.getElementById('plusMenu');
-      const contextMenu = document.getElementById('contextMenu');
-      if (!e.target.closest('.icon-btn') && !e.target.closest('.plus-menu')) {
-        plusMenu.style.display = 'none';
-        plusMenuOpen = false;
-      }
-      if (!e.target.closest('.context-menu') && !e.target.closest('.chat-item')) {
-        contextMenu.style.display = 'none';
-      }
+  // ── Web search
+  function openWebSearch() { document.getElementById('webSearchModal').classList.add('open'); }
+  async function doWebSearch() {
+    const query = document.getElementById('searchQuery').value.trim();
+    if (!query) return;
+    closeModal('webSearchModal');
+    if (!currentChatId) await newChat();
+    appendMessage('user', '🌐 ' + query);
+    showTyping();
+    const res = await fetch('/web-search', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, chat_id: currentChatId })
     });
+    const data = await res.json();
+    removeTyping();
+    appendMessage('bot', data.reply, { sources: data.sources });
+    document.getElementById('searchQuery').value = '';
+    loadChatList();
+  }
 
-    // ── Handle plus menu clicks
-    async function handlePlus(feature) {
-      document.getElementById('plusMenu').style.display = 'none';
-      plusMenuOpen = false;
-
-      if (feature === 'photos') {
-        document.getElementById('imageInput').click();
-      } else if (feature === 'files') {
-        document.getElementById('fileInput').click();
-      } else if (feature === 'camera') {
-        document.getElementById('cameraInput').click();
-      } else if (feature === 'video') {
-        if (!currentChatId) { alert("Please click '+ New Chat' first!"); return; }
-        document.getElementById('videoInput').click();
-      } else if (feature === 'quiz') {
-        if (!currentChatId) { alert("Please click '+ New Chat' first!"); return; }
-        const topic = window.prompt("What topic do you want to be quizzed on?", "");
-        if (!topic) return;
-        showTyping();
-        const response = await fetch("/quiz", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic: topic, chat_id: currentChatId })
-        });
-        const data = await response.json();
-        removeTyping();
-        addMessage(`📝 Quiz Me on: ${topic}`, 'user');
-        addMessage(data.reply, 'bot');
-        await loadChatHistory();
-      } else if (feature === 'websearch') {
-        if (!currentChatId) { alert("Please click '+ New Chat' first!"); return; }
-        const query = window.prompt("What do you want to search?", "");
-        if (!query) return;
-        addMessage(`🌐 Searching: ${query}`, 'user');
-        showTyping();
-        const response = await fetch("/web-search", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: query, chat_id: currentChatId })
-        });
-        const data = await response.json();
-        removeTyping();
-        addMessage(data.reply, 'bot');
-        if (data.sources && data.sources.length > 0) {
-          const chatBox = document.getElementById('chatBox');
-          const sourcesDiv = document.createElement('div');
-          sourcesDiv.className = 'message bot-msg';
-          sourcesDiv.style.fontSize = '12px';
-          sourcesDiv.style.color = '#666';
-          let sourcesText = '🔗 Sources:\n';
-          data.sources.forEach((s, i) => { sourcesText += `${i + 1}. ${s.title}\n${s.link}\n`; });
-          sourcesDiv.innerText = sourcesText;
-          chatBox.appendChild(sourcesDiv);
-          chatBox.scrollTop = chatBox.scrollHeight;
-        }
-        await loadChatHistory();
-      } else if (feature === 'imagine') {
-        if (!currentChatId) { alert("Please click '+ New Chat' first!"); return; }
-        const imagePrompt = window.prompt("What image do you want to generate?", "");
-        if (!imagePrompt) return;
-        await generateImage(imagePrompt);
-      } else if (feature === 'explore') {
-        document.getElementById('exploreOverlay').classList.add('active');
-      }
-    }
-
-    // ── Show context menu
-    function showMenu(event, chatId) {
-      event.preventDefault();
-      rightClickedChatId = chatId;
-      const menu = document.getElementById('contextMenu');
-      menu.style.display = 'block';
-      menu.style.left = event.clientX + 'px';
-      menu.style.top = event.clientY + 'px';
-    }
-
-    // ── Rename chat
-    async function renameChat() {
-      const newTitle = window.prompt("Enter new name for this chat:", "");
-      if (!newTitle) return;
-      await fetch("/rename-chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: rightClickedChatId, new_title: newTitle })
-      });
-      await loadChatHistory();
-    }
-
-    // ── Delete chat
-    async function deleteChat() {
-      const confirmed = confirm("Are you sure you want to delete this chat?");
-      if (!confirmed) return;
-      await fetch("/delete-chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: rightClickedChatId })
-      });
-      if (rightClickedChatId === currentChatId) {
-        currentChatId = null;
-        document.getElementById('chatBox').style.display = 'none';
-        document.getElementById('inputArea').style.display = 'none';
-        document.getElementById('filePreview').classList.remove('active');
-        document.getElementById('emptyState').style.display = 'flex';
-        document.getElementById('chatHeader').innerText = 'Select a chat or start a new one';
-      }
-      await loadChatHistory();
-    }
-
-    // ── Load chat history in sidebar
-    async function loadChatHistory() {
-      const response = await fetch("/get-chats");
-      const data = await response.json();
-      const historyDiv = document.getElementById('chatHistory');
-      historyDiv.innerHTML = '';
-      data.chats.forEach(chat => {
-        const div = document.createElement('div');
-        div.className = 'chat-item';
-        div.innerText = '📝 ' + chat.title;
-        div.id = 'chat-' + chat.id;
-        div.onclick = () => openChat(chat.id);
-        div.oncontextmenu = (e) => showMenu(e, chat.id);
-        div.addEventListener('touchstart', (e) => {
-          longPressTimer = setTimeout(() => showMenu(e.touches[0], chat.id), 600);
-        });
-        div.addEventListener('touchend', () => clearTimeout(longPressTimer));
-        historyDiv.appendChild(div);
-      });
-    }
-
-    // ── Create new chat
-    async function createNewChat() {
-      const response = await fetch("/new-chat", { method: "POST" });
-      const data = await response.json();
-      currentChatId = data.chat_id;
-      waitingForImagePrompt = false;
-      document.getElementById('chatBox').innerHTML = '';
-      document.getElementById('emptyState').style.display = 'none';
-      document.getElementById('chatBox').style.display = 'flex';
-      document.getElementById('inputArea').style.display = 'flex';
-      document.getElementById('chatHeader').innerText = 'New Chat';
-      removePendingFile();
-      await loadChatHistory();
-      document.getElementById('userInput').focus();
-    }
-
-    // ── Open existing chat
-    async function openChat(chatId) {
-      currentChatId = chatId;
-      waitingForImagePrompt = false;
-      document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
-      document.getElementById('chat-' + chatId).classList.add('active');
-      const response = await fetch("/load-chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId })
-      });
-      const data = await response.json();
-      document.getElementById('emptyState').style.display = 'none';
-      document.getElementById('chatBox').style.display = 'flex';
-      document.getElementById('inputArea').style.display = 'flex';
-      document.getElementById('chatHeader').innerText = data.title || 'Chat';
-      const chatBox = document.getElementById('chatBox');
-      chatBox.innerHTML = '';
-      data.messages.forEach(msg => {
-        addMessage(msg.content, msg.role === 'user' ? 'user' : 'bot');
-      });
-      removePendingFile();
-      document.getElementById('userInput').focus();
-    }
-
-    // ── Send message
-    async function sendMessage() {
-      if (isListening) { recognition.stop(); }
-      if (!currentChatId) {
-        alert("Please click '+ New Chat' first!");
-        return;
-      }
-
-      const text = document.getElementById('userInput').value.trim();
-
-      // ── Handle pending file
-      if (pendingFile) {
-        const file = pendingFile;
-        const fileType = pendingFileType;
-        const userText = text || (fileType === "image" ? "What do you see in this image?" : fileType === "video" ? "Analyze this video." : "Please analyze this file.");
-        document.getElementById('userInput').value = '';
-
-        if (fileType === "image") {
-          const reader = new FileReader();
-          reader.onload = async function(e) {
-            showImagePreview(e.target.result);
-            if (text) addMessage(text, 'user');
-            removePendingFile();
-            showTyping();
-            const response = await fetch("/analyze-image", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ image: e.target.result, message: userText, chat_id: currentChatId })
-            });
-            const data = await response.json();
-            removeTyping();
-            addMessage(data.reply, 'bot');
-            await loadChatHistory();
-          };
-          reader.readAsDataURL(file);
-
-        } else if (fileType === "video") {
-          addMessage(`🎬 ${file.name}`, 'user');
-          if (text) addMessage(text, 'user');
-          removePendingFile();
-          showTyping();
-          const typingEl = document.getElementById('typing');
-          if (typingEl) typingEl.innerText = '🎬 Processing video... (this may take 30-60 seconds)';
-          const formData = new FormData();
-          formData.append("video", file);
-          formData.append("chat_id", currentChatId);
-          formData.append("message", userText);
-          const response = await fetch("/analyze-video", { method: "POST", body: formData });
-          const data = await response.json();
-          removeTyping();
-          if (data.transcript) addMessage(`🎤 Speech detected: "${data.transcript}"`, 'bot');
-          addMessage(data.reply, 'bot');
-          await loadChatHistory();
-
-        } else {
-          addMessage(`📄 ${file.name}`, 'user');
-          if (text) addMessage(text, 'user');
-          removePendingFile();
-          showTyping();
-          const formData = new FormData();
-          formData.append("file", file);
-          formData.append("chat_id", currentChatId);
-          formData.append("message", userText);
-          const response = await fetch("/upload-file", { method: "POST", body: formData });
-          const data = await response.json();
-          removeTyping();
-          addMessage(data.reply, 'bot');
-          await loadChatHistory();
-        }
-        return;
-      }
-
-      // ── No pending file
-      if (!text) return;
-      addMessage(text, 'user');
-      document.getElementById('userInput').value = '';
-      showTyping();
-
-      // If bot was waiting for image description
-      if (waitingForImagePrompt) {
-        waitingForImagePrompt = false;
-        showTyping();
-        const response = await fetch("/generate-image", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: text, chat_id: currentChatId })
-        });
-        const data = await response.json();
-        removeTyping();
-        if (data.error) { addMessage('⚠️ ' + data.error, 'bot'); return; }
-        showGeneratedImage(data.image_data, text);
-        await loadChatHistory();
-        return;
-      }
-
-      // Normal chat message
-      const response = await fetch("/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, chat_id: currentChatId })
-      });
-      const data = await response.json();
-      removeTyping();
-
-      if (data.image_data) {
-        showGeneratedImage(data.image_data, text);
-      } else if (data.ask_image_prompt) {
-        waitingForImagePrompt = true;
-        addMessage(data.reply, 'bot');
-      } else {
-        addMessage(data.reply, 'bot');
-      }
-
-      await loadChatHistory();
-    }
-
-    // ── Handle image upload
-    async function handleImageUpload(event) {
-      if (!currentChatId) { alert("Please click '+ New Chat' first!"); return; }
-      const file = event.target.files[0];
-      if (!file) return;
-      pendingFile = file;
-      pendingFileType = "image";
-      document.getElementById('filePreviewIcon').innerText = '🖼️';
-      document.getElementById('filePreviewName').innerText = file.name;
-      document.getElementById('filePreview').classList.add('active');
-      document.getElementById('userInput').placeholder = "Add a message or just press Send...";
-      document.getElementById('userInput').focus();
-      event.target.value = '';
-    }
-
-    // ── Handle file upload
-    async function handleFileUpload(event) {
-      if (!currentChatId) { alert("Please click '+ New Chat' first!"); return; }
-      const file = event.target.files[0];
-      if (!file) return;
-      pendingFile = file;
-      pendingFileType = "document";
-      document.getElementById('filePreviewIcon').innerText = '📄';
-      document.getElementById('filePreviewName').innerText = file.name;
-      document.getElementById('filePreview').classList.add('active');
-      document.getElementById('userInput').placeholder = "Add a message or just press Send...";
-      document.getElementById('userInput').focus();
-      event.target.value = '';
-    }
-
-    // ── Handle video upload
-    async function handleVideoUpload(event) {
-      if (!currentChatId) { alert("Please click '+ New Chat' first!"); return; }
-      const file = event.target.files[0];
-      if (!file) return;
-      const maxSize = 50 * 1024 * 1024;
-      if (file.size > maxSize) {
-        alert("⚠️ Video is too large! Please upload a video under 50MB (recommended: under 30 seconds).");
-        event.target.value = '';
-        return;
-      }
-      const videoEl = document.createElement('video');
-      videoEl.preload = 'metadata';
-      videoEl.onloadedmetadata = function() {
-        URL.revokeObjectURL(videoEl.src);
-        if (videoEl.duration > 60) alert("⚠️ Video is longer than 60 seconds! Processing may take a long time.");
-      };
-      videoEl.src = URL.createObjectURL(file);
-      pendingFile = file;
-      pendingFileType = "video";
-      document.getElementById('filePreviewIcon').innerText = '🎬';
-      document.getElementById('filePreviewName').innerText = file.name;
-      document.getElementById('filePreview').classList.add('active');
-      document.getElementById('userInput').placeholder = "Ask about this video or just press Send...";
-      document.getElementById('userInput').focus();
-      event.target.value = '';
-    }
-
-    // ── Voice to Text
-    function startVoice() {
-      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        alert("Sorry! Your browser doesn't support voice input. Please use Chrome!");
-        return;
-      }
-      if (isListening) { recognition.stop(); return; }
-      recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      recognition.lang = 'en-US';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.onstart = function() {
-        isListening = true;
-        document.getElementById('voiceBtn').innerText = '🔴';
-        document.getElementById('voiceBtn').style.background = '#ffe0e0';
-      };
-      recognition.onresult = function(event) {
-        let fullTranscript = '';
-        for (let i = 0; i < event.results.length; i++) {
-          fullTranscript += event.results[i][0].transcript;
-        }
-        document.getElementById('userInput').value = fullTranscript;
-        document.getElementById('userInput').focus();
-      };
-      recognition.onend = function() {
-        isListening = false;
-        document.getElementById('voiceBtn').innerText = '🎤';
-        document.getElementById('voiceBtn').style.background = '#f0f0f0';
-      };
-      recognition.onerror = function(event) {
-        isListening = false;
-        document.getElementById('voiceBtn').innerText = '🎤';
-        document.getElementById('voiceBtn').style.background = '#f0f0f0';
-        if (event.error === 'not-allowed') alert("Microphone access denied!");
-      };
-      recognition.start();
-    }
-
-    // ── Generate image
-    async function generateImage(prompt) {
-      addMessage(`🎨 Generate: ${prompt}`, 'user');
-      showTyping();
-      const response = await fetch("/generate-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: prompt, chat_id: currentChatId })
-      });
-      const data = await response.json();
-      removeTyping();
-      if (data.error) { addMessage('⚠️ ' + data.error, 'bot'); return; }
-      showGeneratedImage(data.image_data, data.prompt);
-      await loadChatHistory();
-    }
-
-    // ── Show generated image in chat
-    function showGeneratedImage(imageUrl, prompt) {
-      const chatBox = document.getElementById('chatBox');
-      const div = document.createElement('div');
-      div.className = 'message bot-msg';
-      div.style.padding = '12px';
-
-      const caption = document.createElement('p');
-      caption.innerText = `🎨 Generated: ${prompt}`;
-      caption.style.fontSize = '12px';
-      caption.style.color = '#888';
-      caption.style.marginBottom = '8px';
-
-      const img = document.createElement('img');
-      img.style.cssText = 'max-width:300px;border-radius:12px;display:block;';
-      img.alt = prompt;
-      img.src = imageUrl;  // base64 data URI loads instantly, no onload needed
-
-      const downloadBtn = document.createElement('button');
-      downloadBtn.innerText = '⬇️ Download Image';
-      downloadBtn.style.cssText = 'font-size:12px;color:#6c63ff;display:block;margin-top:8px;background:none;border:1px solid #6c63ff;border-radius:8px;padding:6px 12px;cursor:pointer;';
-      downloadBtn.onclick = function() {
-        const a = document.createElement('a');
-        a.href = imageUrl;
-        a.download = prompt.substring(0, 30) + '.jpg';
-        a.click();
-      };
-
-      div.appendChild(caption);
-      div.appendChild(img);
-      div.appendChild(downloadBtn);
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    // ── Explore Apps
-    function closeExplore() {
-      document.getElementById('exploreOverlay').classList.remove('active');
-    }
-
-    document.getElementById('exploreOverlay').addEventListener('click', function(e) {
-      if (e.target === this) closeExplore();
+  // ── Quiz
+  function openQuiz() { document.getElementById('quizModal').classList.add('open'); }
+  async function startQuiz() {
+    const topic = document.getElementById('quizTopic').value.trim();
+    if (!topic) return;
+    closeModal('quizModal');
+    if (!currentChatId) await newChat();
+    appendMessage('user', `📝 Quiz me on: ${topic}`);
+    showTyping();
+    const res = await fetch('/quiz', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, chat_id: currentChatId })
     });
+    const data = await res.json();
+    removeTyping();
+    appendMessage('bot', data.reply);
+    document.getElementById('quizTopic').value = '';
+    loadChatList();
+  }
 
-    // ── Remove pending file
-    function removePendingFile() {
-      pendingFile = null;
-      pendingFileType = null;
-      document.getElementById('filePreview').classList.remove('active');
-      document.getElementById('userInput').placeholder = "Ask me anything...";
-    }
+  // ── Plus menu
+  function togglePlusMenu() { document.getElementById('plusMenu').classList.toggle('open'); }
+  function closePlus() { document.getElementById('plusMenu').classList.remove('open'); }
+  document.addEventListener('click', (e) => {
+    if (!document.getElementById('plusWrap').contains(e.target)) closePlus();
+  });
 
-    // ── Show image preview in chat
-    function showImagePreview(imageData) {
-      const chatBox = document.getElementById('chatBox');
-      const div = document.createElement('div');
-      div.className = 'message user-msg';
-      const img = document.createElement('img');
-      img.src = imageData;
-      img.style.maxWidth = '200px';
-      img.style.maxHeight = '200px';
-      img.style.borderRadius = '10px';
-      img.style.display = 'block';
-      div.appendChild(img);
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
+  // ── Explore
+  function openExplore() { document.getElementById('exploreModal').classList.add('open'); }
 
-    // ── Add message to chat
-    function addMessage(text, sender) {
-      const chatBox = document.getElementById('chatBox');
-      const div = document.createElement('div');
-      div.className = `message ${sender === 'user' ? 'user-msg' : 'bot-msg'}`;
-      div.innerText = text;
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
+  // ── Camera
+  let cameraStream = null;
+  async function openCamera() {
+    document.getElementById('cameraModal').classList.add('open');
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      document.getElementById('cameraPreview').srcObject = cameraStream;
+    } catch(e) { alert('Camera access denied or not available.'); closeCamera(); }
+  }
+  function closeCamera() {
+    if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+    document.getElementById('cameraModal').classList.remove('open');
+  }
+  async function capturePhoto() {
+    const video = document.getElementById('cameraPreview');
+    const canvas = document.getElementById('captureCanvas');
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg');
+    closeCamera();
+    if (!currentChatId) await newChat();
+    appendMessage('user', '📷 Captured photo from camera');
+    showTyping();
+    const res = await fetch('/analyze-image', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: dataUrl, message: 'What do you see in this image?', chat_id: currentChatId })
+    });
+    const data = await res.json();
+    removeTyping();
+    appendMessage('bot', data.reply);
+    loadChatList();
+  }
 
-    // ── Show typing indicator
-    function showTyping() {
-      const chatBox = document.getElementById('chatBox');
-      const div = document.createElement('div');
-      div.className = 'typing';
-      div.id = 'typing';
-      div.innerText = 'StudyBot is thinking...';
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-    // ── Logout
-    async function logout() {
-      await fetch('/logout', { method: 'POST' });
-      window.location.href = '/login';
-    }
-
-    // ── Remove typing indicator
-    function removeTyping() {
-      const t = document.getElementById('typing');
-      if (t) t.remove();
-    }
-  </script>
+  // ── Logout
+  async function logout() {
+    await fetch('/logout', { method: 'POST' });
+    window.location.href = '/login';
+  }
+</script>
 </body>
 </html>

@@ -53,13 +53,6 @@ def login_required(f):
     def decorated(*args, **kwargs):
         if "user_id" not in session:
             return jsonify({"error": "unauthorized"}), 401
-    return decorated
-
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if "user_id" not in session:
-            return jsonify({"error": "unauthorized"}), 401
         return f(*args, **kwargs)
     return decorated
 
@@ -131,7 +124,7 @@ def get_chat_messages(chat_id):
 
 # ── Save chat messages to MongoDB
 def save_chat_messages(chat_id, messages):
-    chats_col.update_one({"chat_id": chat_id}, {"$set": {"messages": messages}})
+    chats_col.update_one({"chat_id": chat_id}, {"$set": {"messages": messages}}, upsert=True)
 
 # ════════════════════════════════════════
 #  AUTH ROUTES
